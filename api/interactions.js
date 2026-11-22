@@ -22,8 +22,11 @@ function verifyDiscordRequest(rawBody, signature, timestamp) {
   }
 }
 
-// Sadece komutu yazan kişiye görünen cevap (flags 64 = ephemeral)
+// flags 64 = sadece komutu yazan kişi görür
 const ephemeral = (content) => ({ type: 4, data: { content, flags: 64 } });
+
+// Çıktıda hiçbir @everyone / @here / kullanıcı etiketi çalışmasın
+const SAFE_MENTIONS = { parse: [] };
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
@@ -43,33 +46,50 @@ export default async function handler(req, res) {
     return res.status(200).json({ type: 1 });
   }
 
-  // Slash komutu
   if (interaction.type === 2) {
     const name = interaction.data?.name;
+    const userId = interaction.member?.user?.id || interaction.user?.id;
+    const opts = Object.fromEntries(
+      (interaction.data.options || []).map((o) => [o.name, o.value])
+    );
 
     if (name === "ping") {
       return res.status(200).json(ephemeral("Pong! Bot çalışıyor."));
     }
 
     if (name === "login") {
-      // Değerleri loglamıyoruz
-      const opts = Object.fromEntries(
-        (interaction.data.options || []).map((o) => [o.name, o.value])
-      );
-
       const bot = await findBotByKeys(opts.secret_key?.trim(), opts.web_key?.trim());
       if (!bot) {
         return res.status(200).json(ephemeral("Geçersiz anahtar. Secret key ve web key'i kontrol edin."));
       }
-
-      const userId = interaction.member?.user?.id || interaction.user?.id;
       await kv.set(`link:${userId}`, {
         botId: bot.botId,
         botName: bot.name,
         linkedAt: Date.now(),
       });
-
       return res.status(200).json(ephemeral(`Doğrulandı. "${bot.name}" botu hesabınıza bağlandı.`));
+    }
+
+    if (name === "run") {
+      const link = await kv.get(`link:${userId}`);
+      if (!link) {
+        return res.status(200).json(ephemeral("Önce /login ile botunuzu bağlayın."));
+      }
+
+      const cmdName = String(opts.name || "").trim().toLowerCase();
+      const cmd = await kv.hget(`cmds:${link.botId}`, cmdName);
+      if (!cmd) {
+        return res.status(200).json(ephemeral(`"${cmdName}" adında bir komut tanımlı değil.`));
+      }
+
+      const args = String(opts.args ?? "");
+      let output = cmd.template.split("{args}").join(args);
+      if (output.length > 1900) output = output.slice(0, 1900) + "...";
+
+      return res.status(200).json({
+        type: 4,
+        data: { content: output, flags: 64, allowed_mentions: SAFE_MENTIONS },
+      });
     }
 
     return res.status(200).json(ephemeral("Bu komut henüz tanımlanmadı."));
