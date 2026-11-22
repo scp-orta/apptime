@@ -9,29 +9,29 @@
     h1 { color: #5865F2; border-bottom: 2px solid #5865F2; padding-bottom: 8px; }
     .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; }
     label { display: block; font-weight: bold; margin-top: 12px; }
-    input, textarea { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #bbb; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
+    input { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #bbb; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
     button { background: #5865F2; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 15px; cursor: pointer; margin-top: 14px; }
     button:hover { background: #4752c4; }
     button.copy { padding: 6px 12px; font-size: 13px; margin: 0 0 0 8px; background: #555; }
-    .key { font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 6px; word-break: break-all; margin-top: 6px; }
+    .key { font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 6px; word-break: break-all; margin-top: 6px; display: inline-block; }
     .warn { background: #fff4e5; border: 1px solid #f0b85a; padding: 12px; border-radius: 6px; margin-top: 14px; }
     .error { color: #c0392b; margin-top: 10px; }
-    pre { background: #272822; color: #f8f8f2; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
     .hidden { display: none; }
     a { color: #5865F2; }
   </style>
 </head>
 <body>
+  <script>
+    fetch("/api/me").then((r) => { if (r.status === 401) location.replace("login.html"); });
+  </script>
+
   <h1>Bot Oluştur</h1>
-  <p>Botunuz için doğrulama anahtarları oluşturun. Anahtarları sitenizde kullanarak botunuzun doğrulandığını kanıtlayabilirsiniz.</p>
+  <p>Botunuz için doğrulama anahtarları oluşturun. Her Discord hesabı için bir bot oluşturulabilir.</p>
 
   <div class="card" id="formCard">
     <form id="createForm">
       <label for="botName">Bot adı (1-50 karakter)</label>
       <input type="text" id="botName" maxlength="50" required>
-
-      <label for="owner">E-posta (isteğe bağlı)</label>
-      <input type="email" id="owner" maxlength="64">
 
       <button type="submit" id="submitBtn">Bot Oluştur</button>
       <div class="error" id="errorBox"></div>
@@ -41,13 +41,13 @@
   <div class="card hidden" id="resultCard">
     <h2>Anahtarlarınız hazır</h2>
 
-    <label>Secret Key (sunucunuzda kullanın, kimseyle paylaşmayın)</label>
+    <label>Secret Key (kimseyle paylaşmayın)</label>
     <div>
       <span class="key" id="secretKey"></span>
       <button class="copy" onclick="copyText('secretKey')">Kopyala</button>
     </div>
 
-    <label>Web Key (sitenizin ön yüzünde kullanabilirsiniz)</label>
+    <label>Web Key (sitenizde kullanabilirsiniz)</label>
     <div>
       <span class="key" id="webKey"></span>
       <button class="copy" onclick="copyText('webKey')">Kopyala</button>
@@ -56,24 +56,11 @@
     <div class="warn">
       Bu anahtarlar yalnızca bu ekranda gösterilir. Kaybederseniz geri alınamaz. Şimdi kopyalayıp güvenli bir yere kaydedin.
     </div>
-
-    <button onclick="location.reload()">Yeni bot oluştur</button>
   </div>
 
   <div class="card">
-    <h2>Sitenize nasıl eklersiniz?</h2>
-    <p>Doğrulamayı <strong>sunucu tarafında</strong> yapın. Secret key tarayıcıya gönderilmemelidir.</p>
-<pre>// Kendi sunucunuzda (Node.js örneği)
-const r = await fetch("https://createapp-three.vercel.app/api/verify", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    secretKey: process.env.BOT_SECRET_KEY,
-    webKey: kullaniciningWebKeyi
-  })
-});
-const { valid, name } = await r.json();</pre>
-    <p>Anahtarı test etmek için <a href="verify.html">doğrulama sayfasını</a> kullanabilirsiniz.</p>
+    <h2>Komutlarınız</h2>
+    <p>Kendi komutlarınızı tanımlamak için <a href="commands.html">Komutlarım</a> sayfasına gidin.</p>
   </div>
 
   <p><a href="terms.html">Hizmet Koşulları</a> · <a href="privacy.html">Gizlilik Politikası</a></p>
@@ -93,13 +80,11 @@ const { valid, name } = await r.json();</pre>
         const res = await fetch("/api/create-bot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: document.getElementById("botName").value,
-            owner: document.getElementById("owner").value
-          })
+          body: JSON.stringify({ name: document.getElementById("botName").value }),
         });
         const data = await res.json();
 
+        if (res.status === 401) return location.replace("login.html");
         if (!res.ok) {
           errorBox.textContent = data.error || "Bir hata oluştu, tekrar deneyin.";
           return;
