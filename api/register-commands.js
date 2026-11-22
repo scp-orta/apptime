@@ -4,6 +4,15 @@ const COMMANDS = [
     description: "Botun çalışıp çalışmadığını test eder",
     type: 1,
   },
+    {
+    name: "run",
+    description: "Kendi tanımladığın komutu çalıştır",
+    type: 1,
+    options: [
+      { name: "name", description: "Komut adı", type: 3, required: true },
+      { name: "args", description: "Değer (isteğe bağlı)", type: 3, required: false },
+    ],
+  },
   {
     name: "login",
     description: "Botunu secret key ve web key ile hesabına bağla",
