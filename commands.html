@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Komutlarım</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #222; background: #fafafa; }
+    h1 { color: #5865F2; border-bottom: 2px solid #5865F2; padding-bottom: 8px; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    label { display: block; font-weight: bold; margin-top: 12px; }
+    input, textarea { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #bbb; border-radius: 6px; font-size: 15px; box-sizing: border-box; font-family: inherit; }
+    textarea { min-height: 90px; }
+    button { background: #5865F2; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 15px; cursor: pointer; margin-top: 14px; }
+    button.del { background: #c0392b; padding: 6px 12px; font-size: 13px; margin: 0; }
+    .row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0; gap: 12px; }
+    code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
+    .error { color: #c0392b; margin-top: 10px; }
+    .hint { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Komutlarım</h1>
+  <p class="hint">Discord'da <code>/run name:komutadi args:deger</code> ile çalıştırırsınız. Şablondaki <code>{args}</code> yerine args değeri yazılır.</p>
+
+  <div class="card">
+    <h2>Yeni komut</h2>
+    <form id="cmdForm">
+      <label for="name">Komut adı (örnek: play)</label>
+      <input id="name" maxlength="32" required>
+
+      <label for="description">Açıklama (isteğe bağlı)</label>
+      <input id="description" maxlength="100">
+
+      <label for="template">Şablon (örnek: {args} için liste hazırlandı)</label>
+      <textarea id="template" maxlength="1000" required></textarea>
+
+      <button type="submit">Kaydet</button>
+      <div class="error" id="error"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Tanımlı komutlar</h2>
+    <div id="list">Yükleniyor...</div>
+  </div>
+
+  <p><a href="index.html">Bot sayfasına dön</a></p>
+
+  <script>
+    const listEl = document.getElementById("list");
+    const errorEl = document.getElementById("error");
+
+    async function load() {
+      const res = await fetch("/api/commands");
+      if (res.status === 401) return location.replace("login.html");
+      const data = await res.json();
+      if (!res.ok) { listEl.textContent = data.error; return; }
+
+      const names = Object.keys(data.commands);
+      if (!names.length) { listEl.textContent = "Henüz komut yok."; return; }
+
+      listEl.innerHTML = "";
+      for (const n of names) {
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const info = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = `/run name:${n}`;
+        const tpl = document.createElement("div");
+        tpl.className = "hint";
+        tpl.textContent = data.commands[n].template;
+        info.append(title, document.createElement("br"), tpl);
+
+        const del = document.createElement("button");
+        del.className = "del";
+        del.textContent = "Sil";
+        del.onclick = () => remove(n);
+
+        row.append(info, del);
+        listEl.append(row);
+      }
+    }
+
+    async function remove(name) {
+      await fetch("/api/commands", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      load();
+    }
+
+    document.getElementById("cmdForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.textContent = "";
+      const res = await fetch("/api/commands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("name").value.trim().toLowerCase(),
+          description: document.getElementById("description").value,
+          template: document.getElementById("template").value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.error; return; }
+      e.target.reset();
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>
