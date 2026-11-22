@@ -33,7 +33,11 @@ export default async function handler(req, res) {
       redirect_uri: `${BASE}/api/auth/callback`,
     }),
   });
-  if (!tokenRes.ok) return fail(res, 401, "Discord girişi başarısız.");
+    if (!tokenRes.ok) {
+    const detail = await tokenRes.text();
+    console.error("Discord token hatası:", detail);
+    return fail(res, 401, "Discord girişi başarısız. Detay: " + detail);
+  }
 
   const { access_token } = await tokenRes.json();
   const userRes = await fetch("https://discord.com/api/users/@me", {
